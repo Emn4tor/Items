@@ -7,10 +7,11 @@ This mod adds new custom items to the game. YAY
 
 ## Item List
 
-| Item Name      | Description             |
-|----------------|-------------------------|
-| `Baseball Bat` | `It can punch players ` |
-| `cube`         | `ITS A CUBE`            |
+| Item Name      | Description                    |
+|----------------|--------------------------------|
+| `Baseball Bat` | `It can punch players `        |
+| `Ball`         | `Can roll around`              |
+| `Hockey stick` | `Can be used to move the ball` |
 
 ---
 
