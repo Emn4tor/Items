@@ -1,56 +1,97 @@
-﻿using HarmonyLib;
-using Unity.Mathematics;
+﻿using System;
+using System.IO;
+using System.Reflection;
 using UnityEngine;
-using Zorro.Settings;
+using Zorro.Core;
+using Object = UnityEngine.Object;
 
-// ExampleCWPlugin is mostly an example of how to use the modding API, not an actual serious mod.
-// It adds a setting to the Mods settings page, which is a slider from 0 to 100.
-// It then edits the Flashlight.Update method to prevent the battery of the flashlight
-// from falling below that setting value.
 
-namespace ExampleCWPlugin;
-
-// The first argument is the GUID for this mod. This must be globally unique across all mods.
-// Consider prefixing your name/etc. to the GUID. (or generate an actual GUID)
-[ContentWarningPlugin("ExampleCWPlugin", "0.1", false)]
-public class PluginTy
+namespace ExampleCWPlugin
 {
-    static PluginTy()
+
+
+
+    [ContentWarningPlugin("CustomItemsPlugin", "1.0", false)]
+    public class CustomItems
     {
-        // Static constructors of types marked with ContentWarningPluginAttribute are automatically invoked on load.
-        // Register callbacks, construct stuff, etc. here.
-        Debug.Log("Hello from ExampleCWPlugin! This is called on plugin load");
-        // Adding the [ContentWarningSetting] attribute to a setting class is basically the same as:
-        // GameHandler.Instance.SettingsHandler.AddSetting(new ExampleSetting());
+        
+        private static AssetBundle _assetBundle;
+        
+        static CustomItems()
+        {
+            
+            Debug.Log("CustomItems plugin loaded.");
+            
+            DirectoryInfo? directory = new FileInfo(Assembly.GetExecutingAssembly().Location).Directory;
+
+            if (directory == null)
+            {
+                Debug.LogError("Failed to locate the plugin directory.");
+                return;
+            }
+            
+            
+            // Load the main asset bundle
+            string assetBundlePath = Path.Combine(directory.FullName, "customitemsassets/knife.assetbundle");
+            _assetBundle = AssetBundle.LoadFromFile(assetBundlePath);
+
+            if (_assetBundle == null)
+            {
+                Debug.LogError($"Failed to load asset bundle from path: {assetBundlePath}");
+                return;
+            }
+
+            // Register custom items
+            RegisterknifeItem();
+            //add more items here
+        }
+
+        private static void RegisterknifeItem()
+        {
+            
+                
+            Item knifeItem = CreateItem("Knife", new Guid("c572e90e-25ff-40cd-8fdc-2e121b872b2b"));
+            knifeItem.useAlternativeHoldingPos = true;
+            knifeItem.useAlternativeHoldingRot = true;
+            knifeItem.holdPos = new Vector3(0, 0.3f, 2.7f);
+            knifeItem.purchasable = true;
+            knifeItem.Category = (ShopItemCategory)1;
+            knifeItem.price = 50;
+
+            GameObject knifePrefab = _assetBundle.LoadAsset<GameObject>("Assets/BUNDLES/knife/baseball.prefab");
+            if (knifePrefab == null)
+            {
+                Debug.LogError("Failed to load knifeItemPrefab.");
+                return;
+            }
+            knifePrefab.transform.GetChild(0).gameObject.AddComponent<HandGizmo>();
+            //knifePrefab.AddComponent<HandGizmo>();
+            
+            //knifePrefab.GetComponent<ItemInstance>().item = knifeItem;
+            var itemInstance = knifePrefab.AddComponent<ItemInstance>();
+            itemInstance.item = knifeItem;
+            knifeItem.itemObject = knifePrefab;
+            knifeItem.icon = _assetBundle.LoadAsset<Sprite>("Assets/BUNDLES/knife/knifeIcon.png");
+            
+            Debug.Log("Registered knife item.");
+        }
+        
+
+        private static Item CreateItem(string name, Guid guid)
+        {
+            // Create a new Item instance
+            Item newItem = ScriptableObject.CreateInstance<Item>();
+            newItem.name = name;
+            newItem.displayName = name;
+            newItem.PersistentID = guid;
+
+            // Register the item in the database
+            SingletonAsset<ItemDatabase>.Instance.AddRuntimeEntry(newItem);
+
+            Debug.Log($"Registered item: {name} with ID: {guid}");
+            return newItem;
+        }
+
     }
-}
-
-// Harmony patches are automatically applied by the vanilla modloader.
-// If 0Harmony.dll is already loaded by BepInEx, then BepInEx's harmony will be used instead.
-[HarmonyPatch(typeof(Flashlight))]
-[HarmonyPatch("Update")]
-public class Patch
-{
-    static AccessTools.FieldRef<Flashlight, BatteryEntry> batteryEntry =
-        AccessTools.FieldRefAccess<Flashlight, BatteryEntry>("m_batteryEntry");
-    static ExampleSetting? exampleSetting;
-
-    static bool Prefix(Flashlight __instance)
-    {
-        exampleSetting ??= GameHandler.Instance.SettingsHandler.GetSetting<ExampleSetting>();
-        var bat = batteryEntry(__instance);
-        bat.m_charge = Mathf.Max(bat.m_charge, bat.m_maxCharge * (exampleSetting.Value / 100));
-        return true;
-    }
-}
-
-// Don't forget to inherit from IExposedSetting too!
-[ContentWarningSetting]
-public class ExampleSetting : FloatSetting, IExposedSetting {
-    public override void ApplyValue() => Debug.Log($"omg, mod setting changed to {Value}");
-    protected override float GetDefaultValue() => 100;
-    protected override float2 GetMinMaxValue() => new(0, 100);
-    // Prefer using the Mods category
-    public SettingCategory GetSettingCategory() => SettingCategory.Mods;
-    public string GetDisplayName() => "Example mod setting";
+    
 }
